@@ -1,7 +1,9 @@
 import path from "node:path";
 
 export const PORT = Number(process.env.PORT ?? 3000);
-export const ROOT_DIR = path.resolve(__dirname, "..");
+export const ROOT_DIR = process.env.VERCEL
+  ? process.cwd()
+  : path.resolve(__dirname, "..");
 export const PUBLIC_DIR = path.join(ROOT_DIR, "public");
 export const DATASET_DIR = process.env.VERCEL
   ? path.join("/tmp", "agrisense-dataset")

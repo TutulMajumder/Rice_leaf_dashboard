@@ -1,6 +1,7 @@
 import cors from "cors";
 import express from "express";
 import fs from "node:fs";
+import path from "node:path";
 import {
   DATASET_DIR,
   IMAGES_DIR,
@@ -21,6 +22,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(PUBLIC_DIR));
+app.get("/", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "index.html")));
 app.use("/dataset-images", express.static(IMAGES_DIR));
 app.use("/api", telemetryRoutes);
 app.use("/api", datasetRoutes);
