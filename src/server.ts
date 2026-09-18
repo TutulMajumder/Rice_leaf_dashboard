@@ -18,7 +18,11 @@ app.use('/dataset-images', express.static(IMAGES_DIR));
 app.use('/api', telemetryRoutes);
 app.use('/api', datasetRoutes);
 
-app.listen(PORT, () => {
-  console.log(`AgriSense dashboard running at http://localhost:${PORT}`);
-  console.log('Dataset workflow: POST /api/dataset/entry -> GET /api/dataset/metadata.csv');
-});
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`AgriSense dashboard running at http://localhost:${PORT}`);
+    console.log('Dataset workflow: POST /api/dataset/entry -> GET /api/dataset/metadata.csv');
+  });
+}
+
+export default app;
