@@ -1,0 +1,20 @@
+# Dependencies and build output
+node_modules/
+dist/
+
+# Runtime and local environment files
+.env
+.env.*
+!.env.example
+*.log
+post-response.json
+
+# Generated field data and uploaded photos
+Dataset/Images/
+Dataset/metadata.csv
+Dataset/sensor_data.json
+Dataset/telemetry_history.json
+
+# Local operating-system files
+.DS_Store
+Thumbs.db

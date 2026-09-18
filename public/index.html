@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AgriSense ESP32 Field Sensor Node | IoT Agricultural Data Acquisition Platform</title>
+  <meta name="description" content="IoT-based agricultural field sensor node dashboard for multimodal plant disease dataset generation with ESP32, DHT22, DS18B20, Soil Moisture, and INA219 telemetry.">
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  
+  <!-- Leaflet CSS & JS for GPS Map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="dark-theme">
+
+  <!-- Background Ambient Glows -->
+  <div class="ambient-glow glow-1"></div>
+  <div class="ambient-glow glow-2"></div>
+  <div class="ambient-glow glow-3"></div>
+
+  <!-- Header / Navigation -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand-group">
+        <div class="brand-icon">
+          <i class="fa-solid fa-seedling"></i>
+          <span class="pulse-ring"></span>
+        </div>
+        <div class="brand-text">
+          <h1>AgriSense <span class="badge-accent">ESP32</span></h1>
+          <p class="tagline">IoT Agricultural Data Acquisition & Multimodal Dataset Platform</p>
+        </div>
+      </div>
+
+      <div class="header-controls">
+        <!-- Connection Badge -->
+        <div class="connection-status" id="connectionStatusBadge">
+          <span class="status-dot online"></span>
+          <span class="status-text">ESP32 LINK ONLINE</span>
+          <span class="latency-text" id="latencyIndicator">38ms</span>
+        </div>
+
+        <!-- Live Clock -->
+        <div class="live-clock" id="liveClockDisplay">
+          <i class="fa-regular fa-clock"></i> <span id="clockTime">--:--:-- UTC</span>
+        </div>
+
+        <!-- Quick Action Nav Buttons -->
+        <div class="action-buttons">
+          <button class="btn btn-primary btn-sm" id="btnDownloadZip" title="Download Complete Multimodal Dataset (.zip)">
+            <i class="fa-solid fa-download"></i> Export Dataset
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Diagnostics Critical Banner (appears on nan, -127°C, or INA219 fail) -->
+  <div class="alerts-container" id="alertsContainer">
+    <!-- Populated dynamically if errors exist -->
+  </div>
+
+  <!-- Main Dashboard Container -->
+  <main class="dashboard-main">
+
+    <!-- Top Navigation Tabs -->
+    <nav class="view-tabs">
+      <button class="tab-btn active" data-tab="telemetryTab">
+        <i class="fa-solid fa-chart-line"></i> Real-Time Telemetry
+      </button>
+      <button class="tab-btn" data-tab="multimodalTab">
+        <i class="fa-solid fa-camera-retro"></i> Multimodal Dataset Studio
+      </button>
+    </nav>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 1: REAL-TIME SENSOR TELEMETRY -->
+    <!-- ========================================================================= -->
+    <section class="tab-content active" id="telemetryTab">
+      
+      <!-- Sensor Metric Cards Grid -->
+      <div class="metrics-grid">
+
+        <!-- Card 1: Air Temperature (DHT22) -->
+        <div class="metric-card sensor-dht22-temp">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="icon-wrap icon-amber"><i class="fa-solid fa-temperature-half"></i></span>
+              <div>
+                <h3>Air Temperature</h3>
+                <span class="sensor-sub">DHT22 · GPIO4 (10kΩ Pull-up)</span>
+              </div>
+            </div>
+            <span class="sensor-badge badge-green" id="dht22TempBadge">Normal</span>
+          </div>
+
+          <div class="card-body">
+            <div class="value-display">
+              <span class="primary-val" id="valAirTemp">--</span>
+              <span class="unit">°C</span>
+              <span class="secondary-val" id="valAirTempF">(88.7°F)</span>
+            </div>
+            <div class="gauge-bar-wrapper">
+              <div class="gauge-bar">
+                <div class="gauge-fill gauge-amber" id="barAirTemp" style="width: 63%;"></div>
+              </div>
+              <div class="gauge-labels">
+                <span>0°C</span>
+                <span class="mid-label">Optimal: 22-30°C</span>
+                <span>50°C</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card-footer">
+            <div class="stat-pill"><span class="lbl">Min</span> <span id="statAirMin">29.1°C</span></div>
+            <div class="stat-pill"><span class="lbl">Max</span> <span id="statAirMax">33.8°C</span></div>
+            <div class="stat-pill"><span class="lbl">Heat Index</span> <span id="statHeatIndex">36.2°C</span></div>
+          </div>
+        </div>
+
+        <!-- Card 2: Air Humidity (DHT22) -->
+        <div class="metric-card sensor-dht22-hum">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="icon-wrap icon-cyan"><i class="fa-solid fa-droplet"></i></span>
+              <div>
+                <h3>Air Humidity</h3>
+                <span class="sensor-sub">DHT22 · GPIO4</span>
+              </div>
+            </div>
+            <span class="sensor-badge badge-cyan" id="dht22HumBadge">Normal</span>
+          </div>
+
+          <div class="card-body">
+            <div class="value-display">
+              <span class="primary-val" id="valAirHum">--</span>
+              <span class="unit">% RH</span>
+            </div>
+            <div class="gauge-bar-wrapper">
+              <div class="gauge-bar">
+                <div class="gauge-fill gauge-cyan" id="barAirHum" style="width: 78%;"></div>
+              </div>
+              <div class="gauge-labels">
+                <span>0%</span>
+                <span class="mid-label">Target: 60-80%</span>
+                <span>100%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card-footer">
+            <div class="stat-pill"><span class="lbl">Vapor Deficit</span> <span id="statVpd">0.98 kPa</span></div>
+            <div class="stat-pill"><span class="lbl">Dew Point</span> <span id="statDewPoint">27.1°C</span></div>
+            <div class="stat-pill"><span class="lbl">Fungal Risk</span> <span class="text-warning" id="statFungalRisk">Moderate</span></div>
+          </div>
+        </div>
+
+        <!-- Card 3: Soil Temperature (DS18B20) -->
+        <div class="metric-card sensor-ds18b20">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="icon-wrap icon-emerald"><i class="fa-solid fa-thermometer"></i></span>
+              <div>
+                <h3>Soil Temperature</h3>
+                <span class="sensor-sub">DS18B20 · GPIO5 (4.7kΩ Pull-up)</span>
+              </div>
+            </div>
+            <span class="sensor-badge badge-green" id="ds18b20Badge">Normal</span>
+          </div>
+
+          <div class="card-body">
+            <div class="value-display">
+              <span class="primary-val" id="valSoilTemp">--</span>
+              <span class="unit">°C</span>
+              <span class="secondary-val" id="valSoilTempF">(81.3°F)</span>
+            </div>
+            <div class="gauge-bar-wrapper">
+              <div class="gauge-bar">
+                <div class="gauge-fill gauge-emerald" id="barSoilTemp" style="width: 55%;"></div>
+              </div>
+              <div class="gauge-labels">
+                <span>-10°C</span>
+                <span class="mid-label">Root Zone: Warm</span>
+                <span>50°C</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card-footer">
+            <div class="stat-pill"><span class="lbl">Probe Depth</span> <span>15 cm</span></div>
+            <div class="stat-pill"><span class="lbl">Air-Soil Delta</span> <span id="statTempDelta">-4.1°C</span></div>
+            <div class="stat-pill"><span class="lbl">Wire Code</span> <span class="text-mono">YEL/WHT</span></div>
+          </div>
+        </div>
+
+        <!-- Card 4: Soil Moisture (Capacitive AO) -->
+        <div class="metric-card sensor-moisture">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="icon-wrap icon-blue"><i class="fa-solid fa-water"></i></span>
+              <div>
+                <h3>Soil Moisture</h3>
+                <span class="sensor-sub">Capacitive Sensor · GPIO34 AO</span>
+              </div>
+            </div>
+            <span class="sensor-badge badge-blue" id="moistureBadge">Optimal</span>
+          </div>
+
+          <div class="card-body">
+            <div class="value-display">
+              <span class="primary-val" id="valMoistPct">59</span>
+              <span class="unit">% VWC</span>
+              <span class="secondary-val text-mono" id="valMoistRaw">ADC: --</span>
+            </div>
+            <div class="gauge-bar-wrapper">
+              <div class="gauge-bar">
+                <div class="gauge-fill gauge-blue" id="barMoist" style="width: 59%;"></div>
+              </div>
+              <div class="gauge-labels">
+                <span>Dry (~2850)</span>
+                <span class="mid-label">Field Capacity</span>
+                <span>Saturated (~1350)</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card-footer">
+            <div class="stat-pill"><span class="lbl">ADC Range</span> <span class="text-mono">12-Bit 0-4095</span></div>
+            <div class="stat-pill"><span class="lbl">Soil State</span> <span id="statMoistStatus" class="text-emerald">Optimal Field Water</span></div>
+            <div class="stat-pill"><span class="lbl">Next Irrigation</span> <span>~18h</span></div>
+          </div>
+        </div>
+
+        <!-- Card 5: Power & Battery (INA219) -->
+        <div class="metric-card sensor-ina219">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="icon-wrap icon-purple"><i class="fa-solid fa-bolt-lightning"></i></span>
+              <div>
+                <h3>Device Power & Energy</h3>
+                <span class="sensor-sub">INA219 · I2C GPIO21/GPIO22</span>
+              </div>
+            </div>
+            <span class="sensor-badge badge-purple" id="ina219Badge">Normal</span>
+          </div>
+
+          <div class="card-body">
+            <div class="power-metric-row">
+              <div class="power-item">
+                <span class="p-lbl">Bus Voltage</span>
+                <span class="p-val" id="valVoltage">--</span>
+                <span class="p-unit">V</span>
+              </div>
+              <div class="power-divider"></div>
+              <div class="power-item">
+                <span class="p-lbl">Shunt Current</span>
+                <span class="p-val" id="valCurrent">--</span>
+                <span class="p-unit">mA</span>
+              </div>
+              <div class="power-divider"></div>
+              <div class="power-item">
+                <span class="p-lbl">Power</span>
+                <span class="p-val text-emerald" id="valPower">--</span>
+                <span class="p-unit">mW</span>
+              </div>
+            </div>
+            <div class="battery-status-bar">
+              <div class="battery-fill" id="barBattery" style="width: 78%;"></div>
+            </div>
+            <div class="battery-meta">
+              <span id="statBatteryPct"><i class="fa-solid fa-battery-three-quarters"></i> Waiting for sensor data</span>
+              <span id="statEstRuntime">Est. ~19.4 hrs on 2500mAh</span>
+            </div>
+          </div>
+
+          <div class="card-footer">
+            <div class="stat-pill"><span class="lbl">I2C Address</span> <span class="text-mono">0x40</span></div>
+            <div class="stat-pill"><span class="lbl">WiFi Mode</span> <span>TX Active</span></div>
+            <div class="stat-pill"><span class="lbl">Sleep State</span> <span class="text-emerald">Active Ingest</span></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Live Interactive Charts Section -->
+      <div class="charts-section">
+        <div class="chart-box">
+          <div class="chart-header">
+            <div class="chart-title">
+              <h4><i class="fa-solid fa-chart-area"></i> Environmental & Soil Thermal Dynamics</h4>
+              <p>Real-time correlation between DHT22 ambient temperature and DS18B20 soil temperature</p>
+            </div>
+            <div class="chart-legend-custom">
+              <span class="legend-chip chip-amber"><span class="dot"></span> Air Temp (°C)</span>
+              <span class="legend-chip chip-emerald"><span class="dot"></span> Soil Temp (°C)</span>
+            </div>
+          </div>
+          <div class="chart-canvas-container">
+            <canvas id="tempChart"></canvas>
+          </div>
+        </div>
+
+        <div class="chart-box">
+          <div class="chart-header">
+            <div class="chart-title">
+              <h4><i class="fa-solid fa-chart-simple"></i> Moisture Dynamics & Power Consumption</h4>
+              <p>Capacitive soil moisture %, atmospheric humidity %, and INA219 power draw (mW)</p>
+            </div>
+            <div class="chart-legend-custom">
+              <span class="legend-chip chip-cyan"><span class="dot"></span> Air Humidity (%)</span>
+              <span class="legend-chip chip-blue"><span class="dot"></span> Soil Moisture (%)</span>
+              <span class="legend-chip chip-purple"><span class="dot"></span> Power (mW / 10)</span>
+            </div>
+          </div>
+          <div class="chart-canvas-container">
+            <canvas id="moisturePowerChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 2: MULTIMODAL PLANT DISEASE DATASET STUDIO -->
+    <!-- ========================================================================= -->
+    <section class="tab-content" id="multimodalTab">
+      
+      <!-- Multimodal Generator Pipeline Overview -->
+      <div class="pipeline-banner">
+        <div class="pipeline-step">
+          <div class="step-num">1</div>
+          <div class="step-info">
+            <strong>Sensors Telemetry</strong>
+            <span>Temp, Humidity, Soil, Power</span>
+          </div>
+        </div>
+        <div class="pipeline-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+        <div class="pipeline-step">
+          <div class="step-num">2</div>
+          <div class="step-info">
+            <strong>Plant Imagery</strong>
+            <span>High-Res Leaf Morphology</span>
+          </div>
+        </div>
+        <div class="pipeline-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+        <div class="pipeline-step">
+          <div class="step-num">3</div>
+          <div class="step-info">
+            <strong>GPS & Crop Metadata</strong>
+            <span>Lat/Lng, Crop, Disease Class</span>
+          </div>
+        </div>
+        <div class="pipeline-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+        <div class="pipeline-step highlight">
+          <div class="step-num"><i class="fa-solid fa-database"></i></div>
+          <div class="step-info">
+            <strong>Multimodal Dataset</strong>
+            <span>Images/ + metadata.csv + JSON</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Studio Work Area: 2 Columns -->
+      <div class="studio-container">
+        
+        <!-- Left Column: Image Staging & Field Camera -->
+        <div class="studio-card image-staging-card">
+          <div class="studio-card-header">
+            <h4><i class="fa-solid fa-camera"></i> Plant Leaf Specimen Capture</h4>
+            <span class="badge-accent">Image Channel</span>
+          </div>
+
+          <div class="leaf-preview-box">
+            <img id="leafImagePreview" src="" alt="Rice Leaf Preview" hidden>
+            <div id="leafPreviewEmpty" class="leaf-preview-empty">Your rice leaf photo will appear here</div>
+            <div class="hud-overlay">
+              <div class="crosshair-box"></div>
+              <div class="hud-tag top-left" id="hudCropTag">Rice Leaf</div>
+              <div class="hud-tag top-right" id="hudGpsTag">Rajshahi field</div>
+              <div class="hud-tag bottom-left" id="hudSensorTag">Waiting for sensor data</div>
+              <div class="hud-tag bottom-right">SCALE 10cm</div>
+            </div>
+          </div>
+
+          <!-- Custom Upload Controls -->
+          <div class="upload-dropzone" id="dropzoneContainer">
+            <input type="file" id="leafCameraInput" accept="image/*" capture="environment" style="display:none;">
+            <input type="file" id="leafFileInput" accept="image/*" style="display:none;">
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+            <p><strong>Take or Upload Rice Leaf Photo</strong></p>
+            <span>On mobile, this opens the rear camera. GPS is requested automatically.</span>
+            <div class="capture-actions">
+              <button type="button" class="btn btn-primary btn-sm" id="btnOpenCamera" style="margin-top: 10px;">
+                <i class="fa-solid fa-camera"></i> Open Camera
+              </button>
+              <button type="button" class="btn btn-secondary btn-sm" id="btnBrowseFile" style="margin-top: 10px;">
+                <i class="fa-solid fa-folder-open"></i> Choose Gallery
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: Crop Info, GPS Map & Record Button -->
+        <div class="studio-card metadata-staging-card">
+          <div class="studio-card-header">
+            <h4><i class="fa-solid fa-tags"></i> Crop Metadata & Field Geolocation</h4>
+            <span class="badge-accent">Context Channels</span>
+          </div>
+
+          <form id="datasetRecordForm" class="metadata-form">
+            
+            <div class="form-row">
+              <div class="form-group flex-1">
+                <label for="nodeSelect"><i class="fa-solid fa-microchip"></i> Hardware Sensor Node</label>
+                <select id="nodeSelect" required>
+                  <option value="">Waiting for hardware...</option>
+                </select>
+              </div>
+
+              <div class="form-group flex-2">
+                <label for="inputCropType"><i class="fa-solid fa-wheat-awn"></i> Crop Species</label>
+                <select id="inputCropType" required>
+                  <option value="Rice (Oryza sativa)" selected>Rice (Oryza sativa)</option>
+                </select>
+              </div>
+
+              <div class="form-group flex-1">
+                <label for="inputGrowthStage"><i class="fa-solid fa-leaf"></i> Growth Stage</label>
+                <select id="inputGrowthStage">
+                  <option value="Seedling">Seedling</option>
+                  <option value="Vegetative" selected>Vegetative</option>
+                  <option value="Flowering">Flowering</option>
+                  <option value="Fruiting">Fruiting</option>
+                  <option value="Maturity">Maturity</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group flex-2">
+                <label for="inputDiseaseLabel"><i class="fa-solid fa-virus"></i> Disease Diagnosis / Pathology</label>
+                <select id="inputDiseaseLabel" required>
+                  <option value="Healthy" selected>Healthy (No Pathology Detected)</option>
+                  <option value="Rice Blast (Magnaporthe oryzae)">Rice Blast (Magnaporthe oryzae)</option>
+                  <option value="Bacterial Leaf Blight (Xanthomonas oryzae)">Bacterial Leaf Blight (Xanthomonas oryzae)</option>
+                  <option value="Brown Spot (Bipolaris oryzae)">Brown Spot (Bipolaris oryzae)</option>
+                  <option value="Sheath Blight (Rhizoctonia solani)">Sheath Blight (Rhizoctonia solani)</option>
+                </select>
+              </div>
+
+              <div class="form-group flex-1">
+                <label for="inputSeverity"><i class="fa-solid fa-chart-pie"></i> Severity Level</label>
+                <select id="inputSeverity">
+                  <option value="0%" selected>0% (Asymptomatic)</option>
+                  <option value="15%">15% (Mild / Initial)</option>
+                  <option value="35%">35% (Moderate)</option>
+                  <option value="65%">65% (Severe)</option>
+                  <option value="90%">90% (Necrotic / Terminal)</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- GPS Field Location & Interactive Map -->
+            <div class="form-group">
+              <div class="gps-header">
+                <label><i class="fa-solid fa-location-dot"></i> Phone GPS Coordinates</label>
+                <span class="gps-coords-badge" id="gpsDisplayBadge">Waiting for phone GPS</span>
+              </div>
+              <div id="gpsMapContainer"></div>
+              <div class="gps-inputs-row">
+                  <input type="number" step="0.0001" id="inputLat" value="" placeholder="Latitude">
+                  <input type="number" step="0.0001" id="inputLng" value="" placeholder="Longitude">
+                  <input type="number" step="0.1" id="inputAlt" value="" placeholder="Altitude (m)">
+              </div>
+            </div>
+
+            <!-- Telemetry Snapshot Preview (Attached Automatically) -->
+            <div class="telemetry-snapshot-box">
+              <div class="snap-title"><i class="fa-solid fa-microchip"></i> Live Sensor Telemetry to be Bound:</div>
+              <div class="snap-grid">
+                <div><span class="k">Air Temp:</span> <span class="v" id="snapTemp">Waiting</span></div>
+                <div><span class="k">Humidity:</span> <span class="v" id="snapHum">Waiting</span></div>
+                <div><span class="k">Soil Temp:</span> <span class="v" id="snapSoilTemp">Waiting</span></div>
+                <div><span class="k">Moisture:</span> <span class="v" id="snapMoist">Waiting</span></div>
+                <div><span class="k">Voltage:</span> <span class="v" id="snapVolt">Waiting</span></div>
+                <div><span class="k">Current:</span> <span class="v" id="snapCurr">Waiting</span></div>
+              </div>
+            </div>
+
+            <!-- Notes Field -->
+            <div class="form-group">
+              <label for="inputNotes"><i class="fa-solid fa-note-sticky"></i> Agronomist / Field Notes</label>
+              <input type="text" id="inputNotes" placeholder="e.g. Lower canopy leaf, morning dew present, 25 days post-seeding">
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" class="btn btn-primary btn-block" id="btnRecordSample">
+              <i class="fa-solid fa-circle-check"></i> Bind & Commit Multimodal Dataset Sample
+            </button>
+          </form>
+
+        </div>
+
+      </div>
+
+      <!-- Dataset Explorer: File Structure & Live Table -->
+      <div class="dataset-explorer-section">
+        <div class="explorer-header">
+          <div>
+            <h3><i class="fa-solid fa-folder-tree"></i> Generated Dataset Structure & Archive</h3>
+            <p>Dataset maintains exact structure: <code>Dataset/Images/</code>, <code>metadata.csv</code>, and <code>sensor_data.json</code></p>
+          </div>
+          <div class="export-actions">
+            <a href="/api/dataset/metadata.csv" class="btn btn-secondary btn-sm" download>
+              <i class="fa-solid fa-file-csv"></i> metadata.csv
+            </a>
+            <a href="/api/dataset/sensor_data.json" class="btn btn-secondary btn-sm" download>
+              <i class="fa-solid fa-file-code"></i> sensor_data.json
+            </a>
+          </div>
+        </div>
+
+        <div class="dataset-table-card">
+          <div class="table-responsive">
+            <table class="data-table" id="datasetTable">
+              <thead>
+                <tr>
+                  <th>Sample ID</th>
+                  <th>Image</th>
+                  <th>Timestamp</th>
+                  <th>Node</th>
+                  <th>Crop</th>
+                  <th>Pathology Class</th>
+                  <th>Severity</th>
+                  <th>GPS Coordinates</th>
+                  <th>Air Temp / Hum</th>
+                  <th>Soil Temp / Moist</th>
+                  <th>Power (V / mA)</th>
+                </tr>
+              </thead>
+              <tbody id="datasetTableBody">
+                <!-- Dynamically populated from /api/dataset -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 3: ESP32 PINOUT & WIRING VISUALIZER -->
+    <!-- ========================================================================= -->
+    <section class="tab-content" id="hardwareTab">
+      
+      <div class="hardware-container">
+        
+        <div class="hardware-info-card">
+          <h3><i class="fa-solid fa-diagram-project"></i> ESP32 WROOM-32 Hardware Topology & Pinout</h3>
+          <p>Click any sensor module to highlight its connection pins, pull-up resistors, and signal routing on the ESP32.</p>
+          
+          <div class="sensor-selectors">
+            <button class="sensor-btn active" data-sensor="all">All Sensors</button>
+            <button class="sensor-btn" data-sensor="dht22">DHT22 (Air Temp & Hum)</button>
+            <button class="sensor-btn" data-sensor="ds18b20">DS18B20 (Soil Temp)</button>
+            <button class="sensor-btn" data-sensor="moisture">Capacitive Moisture Sensor</button>
+            <button class="sensor-btn" data-sensor="ina219">INA219 (Voltage & Current)</button>
+          </div>
+
+          <!-- Pinout Specifications Table from Markdown -->
+          <div class="pin-specs-grid">
+            
+            <div class="pin-box pin-dht22">
+              <div class="pin-box-head">
+                <span class="tag">DHT22</span>
+                <strong>GPIO4</strong>
+              </div>
+              <p>Air Temperature & Humidity</p>
+              <div class="pin-wiring-list">
+                <span><span class="c-red">VCC</span> ➔ 3.3V</span>
+                <span><span class="c-yellow">DATA</span> ➔ GPIO4 (10kΩ Pull-up to 3.3V)</span>
+                <span><span class="c-black">GND</span> ➔ GND</span>
+              </div>
+            </div>
+
+            <div class="pin-box pin-ds18b20">
+              <div class="pin-box-head">
+                <span class="tag">DS18B20</span>
+                <strong>GPIO5</strong>
+              </div>
+              <p>Soil Temperature Probe</p>
+              <div class="pin-wiring-list">
+                <span><span class="c-red">Red Wire</span> ➔ 3.3V</span>
+                <span><span class="c-yellow">Yellow/White</span> ➔ GPIO5 (4.7kΩ Pull-up to 3.3V)</span>
+                <span><span class="c-black">Black Wire</span> ➔ GND</span>
+              </div>
+            </div>
+
+            <div class="pin-box pin-moisture">
+              <div class="pin-box-head">
+                <span class="tag">Soil Moisture</span>
+                <strong>GPIO34</strong>
+              </div>
+              <p>Capacitive Analog Sensor</p>
+              <div class="pin-wiring-list">
+                <span><span class="c-red">VCC</span> ➔ 3.3V</span>
+                <span><span class="c-yellow">AO (Analog Out)</span> ➔ GPIO34 (ADC1_CH6)</span>
+                <span><span class="c-black">GND</span> ➔ GND</span>
+              </div>
+            </div>
+
+            <div class="pin-box pin-ina219">
+              <div class="pin-box-head">
+                <span class="tag">INA219</span>
+                <strong>GPIO21 / GPIO22</strong>
+              </div>
+              <p>Voltage & Current I2C Monitor</p>
+              <div class="pin-wiring-list">
+                <span><span class="c-red">VCC</span> ➔ 3.3V &nbsp;|&nbsp; <span class="c-black">GND</span> ➔ GND</span>
+                <span><span class="c-blue">SDA</span> ➔ GPIO21</span>
+                <span><span class="c-purple">SCL</span> ➔ GPIO22</span>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- Visual Board Layout -->
+        <div class="esp32-visual-card">
+          <div class="visual-header">
+            <h4><i class="fa-solid fa-microchip"></i> ESP32 WROOM-32 Pinout Diagram</h4>
+            <span class="board-chip">ESP-WROOM-32</span>
+          </div>
+
+          <div class="esp32-board-container">
+            <!-- SVG Schematic of ESP32 WROOM-32 -->
+            <svg class="esp32-svg" viewBox="0 0 700 480" xmlns="http://www.w3.org/2000/svg">
+              <!-- Board Outline -->
+              <rect x="180" y="20" width="340" height="440" rx="20" fill="#111827" stroke="#374151" stroke-width="4"/>
+              
+              <!-- Metal Shield (ESP32 IC) -->
+              <rect x="230" y="50" width="240" height="200" rx="10" fill="#374151" stroke="#4b5563" stroke-width="2"/>
+              <text x="350" y="130" fill="#9ca3af" font-family="'JetBrains Mono', monospace" font-size="16" font-weight="bold" text-anchor="middle">ESP-WROOM-32</text>
+              <text x="350" y="160" fill="#6b7280" font-family="'JetBrains Mono', monospace" font-size="12" text-anchor="middle">Wi-Fi + BLE Dual Core</text>
+
+              <!-- Antenna PCB trace -->
+              <path d="M 270 30 L 270 45 L 430 45 L 430 30" fill="none" stroke="#d97706" stroke-width="3"/>
+
+              <!-- USB Port -->
+              <rect x="310" y="440" width="80" height="30" rx="5" fill="#6b7280"/>
+              <text x="350" y="458" fill="#111827" font-size="10" font-weight="bold" text-anchor="middle">MICRO-USB</text>
+
+              <!-- LEFT PINS (GPIO34, etc.) -->
+              <!-- 3.3V Pin -->
+              <g class="pin-group pin-power" id="pinSvg3V3">
+                <rect x="150" y="70" width="60" height="20" rx="3" fill="#ef4444"/>
+                <circle cx="160" cy="80" r="4" fill="#fff"/>
+                <text x="140" y="84" fill="#f87171" font-family="'JetBrains Mono', monospace" font-size="11" text-anchor="end">3.3V (Power Rail)</text>
+              </g>
+
+              <!-- GND Pin -->
+              <g class="pin-group pin-power" id="pinSvgGnd">
+                <rect x="150" y="100" width="60" height="20" rx="3" fill="#374151"/>
+                <circle cx="160" cy="110" r="4" fill="#fff"/>
+                <text x="140" y="114" fill="#9ca3af" font-family="'JetBrains Mono', monospace" font-size="11" text-anchor="end">GND (Common Ground)</text>
+              </g>
+
+              <!-- GPIO34 (Soil Moisture AO) -->
+              <g class="pin-group pin-moisture-svg active-pulse" id="pinSvgGPIO34">
+                <rect x="150" y="220" width="60" height="20" rx="3" fill="#3b82f6"/>
+                <circle cx="160" cy="230" r="4" fill="#fff"/>
+                <text x="140" y="234" fill="#60a5fa" font-family="'JetBrains Mono', monospace" font-size="12" font-weight="bold" text-anchor="end">GPIO34 (Soil AO)</text>
+                <!-- Wire line leading to sensor -->
+                <path d="M 150 230 L 60 230 L 60 200" fill="none" stroke="#3b82f6" stroke-width="3" stroke-dasharray="4"/>
+              </g>
+
+              <!-- RIGHT PINS -->
+              <!-- GPIO4 (DHT22 DATA) -->
+              <g class="pin-group pin-dht22-svg active-pulse" id="pinSvgGPIO4">
+                <rect x="490" y="130" width="60" height="20" rx="3" fill="#f59e0b"/>
+                <circle cx="540" cy="140" r="4" fill="#fff"/>
+                <text x="560" y="144" fill="#fbbf24" font-family="'JetBrains Mono', monospace" font-size="12" font-weight="bold">GPIO4 (DHT22 DATA)</text>
+                <!-- Pull-up resistor box -->
+                <rect x="620" y="100" width="70" height="24" rx="4" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5"/>
+                <text x="655" y="116" fill="#f59e0b" font-family="'JetBrains Mono', monospace" font-size="10" text-anchor="middle">10kΩ PULLUP</text>
+              </g>
+
+              <!-- GPIO5 (DS18B20 DATA) -->
+              <g class="pin-group pin-ds18b20-svg active-pulse" id="pinSvgGPIO5">
+                <rect x="490" y="170" width="60" height="20" rx="3" fill="#10b981"/>
+                <circle cx="540" cy="180" r="4" fill="#fff"/>
+                <text x="560" y="184" fill="#34d399" font-family="'JetBrains Mono', monospace" font-size="12" font-weight="bold">GPIO5 (DS18B20)</text>
+                <!-- Pull-up resistor box -->
+                <rect x="620" y="195" width="70" height="24" rx="4" fill="#1e293b" stroke="#10b981" stroke-width="1.5"/>
+                <text x="655" y="211" fill="#10b981" font-family="'JetBrains Mono', monospace" font-size="10" text-anchor="middle">4.7kΩ PULLUP</text>
+              </g>
+
+              <!-- GPIO21 (INA219 SDA) -->
+              <g class="pin-group pin-ina219-svg active-pulse" id="pinSvgGPIO21">
+                <rect x="490" y="270" width="60" height="20" rx="3" fill="#06b6d4"/>
+                <circle cx="540" cy="280" r="4" fill="#fff"/>
+                <text x="560" y="284" fill="#22d3ee" font-family="'JetBrains Mono', monospace" font-size="12" font-weight="bold">GPIO21 (INA219 SDA)</text>
+              </g>
+
+              <!-- GPIO22 (INA219 SCL) -->
+              <g class="pin-group pin-ina219-svg active-pulse" id="pinSvgGPIO22">
+                <rect x="490" y="310" width="60" height="20" rx="3" fill="#8b5cf6"/>
+                <circle cx="540" cy="320" r="4" fill="#fff"/>
+                <text x="560" y="324" fill="#a78bfa" font-family="'JetBrains Mono', monospace" font-size="12" font-weight="bold">GPIO22 (INA219 SCL)</text>
+              </g>
+
+              <!-- Sensor Labels along edges -->
+              <rect x="20" y="160" width="110" height="60" rx="6" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+              <text x="75" y="185" fill="#60a5fa" font-family="'JetBrains Mono', monospace" font-size="11" font-weight="bold" text-anchor="middle">CAPACITIVE</text>
+              <text x="75" y="202" fill="#94a3b8" font-family="'JetBrains Mono', monospace" font-size="10" text-anchor="middle">MOISTURE SENSOR</text>
+
+            </svg>
+          </div>
+
+          <div class="schematic-notes">
+            <strong><i class="fa-solid fa-circle-info"></i> Hardware Configuration Notes:</strong>
+            <ul>
+              <li><strong>DHT22:</strong> Requires a 10kΩ pull-up resistor between 3.3V and GPIO4 DATA line.</li>
+              <li><strong>DS18B20:</strong> Requires a 4.7kΩ pull-up resistor between 3.3V and GPIO5 Yellow/White DATA line.</li>
+              <li><strong>Capacitive Moisture:</strong> Connect AO directly to GPIO34 (Input-only ADC1 pin). Avoid ADC2 when WiFi is active.</li>
+              <li><strong>INA219:</strong> I2C address default is <code>0x40</code>. SDA to GPIO21 and SCL to GPIO22.</li>
+            </ul>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 4: DIAGNOSTICS & TROUBLESHOOTING CENTER -->
+    <!-- ========================================================================= -->
+    <section class="tab-content" id="troubleshootTab">
+      
+      <div class="troubleshoot-header">
+        <div>
+          <h3><i class="fa-solid fa-stethoscope"></i> Hardware Health & Troubleshooting Matrix</h3>
+          <p>Real-time detection and guided resolution for hardware faults defined in the AgriSense specification.</p>
+        </div>
+        <button class="btn btn-secondary btn-sm" id="btnTestAnomalySuite">
+          <i class="fa-solid fa-flask"></i> Anomaly Test Suite
+        </button>
+      </div>
+
+      <!-- Real-Time Sensor Health Matrix -->
+      <div class="health-matrix-grid">
+        
+        <div class="health-card" id="healthDht22Card">
+          <div class="health-icon icon-amber"><i class="fa-solid fa-temperature-half"></i></div>
+          <div class="health-details">
+            <div class="h-title">DHT22 (Air Temp & Hum)</div>
+            <div class="h-pin">GPIO4 · 10kΩ Pull-up</div>
+            <div class="h-status text-emerald" id="healthDht22Status"><i class="fa-solid fa-circle-check"></i> Connected & Reading</div>
+          </div>
+        </div>
+
+        <div class="health-card" id="healthDs18b20Card">
+          <div class="health-icon icon-emerald"><i class="fa-solid fa-thermometer"></i></div>
+          <div class="health-details">
+            <div class="h-title">DS18B20 (Soil Temp)</div>
+            <div class="h-pin">GPIO5 · 4.7kΩ Pull-up</div>
+            <div class="h-status text-emerald" id="healthDs18b20Status"><i class="fa-solid fa-circle-check"></i> Connected & Reading</div>
+          </div>
+        </div>
+
+        <div class="health-card" id="healthIna219Card">
+          <div class="health-icon icon-purple"><i class="fa-solid fa-bolt"></i></div>
+          <div class="health-details">
+            <div class="h-title">INA219 (Power Monitor)</div>
+            <div class="h-pin">I2C SDA:21 / SCL:22</div>
+            <div class="h-status text-emerald" id="healthIna219Status"><i class="fa-solid fa-circle-check"></i> I2C 0x40 Acknowledged</div>
+          </div>
+        </div>
+
+        <div class="health-card" id="healthMoistureCard">
+          <div class="health-icon icon-blue"><i class="fa-solid fa-water"></i></div>
+          <div class="health-details">
+            <div class="h-title">Soil Moisture Sensor</div>
+            <div class="h-pin">GPIO34 AO (ADC1)</div>
+            <div class="h-status text-emerald" id="healthMoistureStatus"><i class="fa-solid fa-circle-check"></i> Signal In Range (1850)</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Specification Troubleshooting Playbook -->
+      <div class="troubleshoot-playbook">
+        
+        <!-- Case 1: DHT22 nan -->
+        <div class="playbook-item">
+          <div class="playbook-item-header">
+            <div class="badge-error">PROBLEM: nan</div>
+            <h4>DHT22 Temperature / Humidity Read Failure</h4>
+          </div>
+          <div class="playbook-item-body">
+            <p>If the ESP32 receives <code>nan</code> (Not a Number) from the DHT22, the digital timing handshake has timed out.</p>
+            <div class="checklist">
+              <label class="check-item"><input type="checkbox" checked> <span>Check <strong>DATA connection</strong> on GPIO4</span></label>
+              <label class="check-item"><input type="checkbox" checked> <span>Verify <strong>10kΩ pull-up resistor</strong> between 3.3V and DATA line</span></label>
+              <label class="check-item"><input type="checkbox" checked> <span>Verify DHT22 VCC is powered by stable 3.3V or 5V rail</span></label>
+              <label class="check-item"><input type="checkbox" checked> <span>Ensure read interval is at least 2000ms (DHT22 sampling limit)</span></label>
+            </div>
+            <div class="schematic-snippet">
+              <pre><code>3.3V ───[ 10kΩ Resistor ]───┬─── DHT22 DATA (GPIO4)
+                            └─── ESP32 GPIO4</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Case 2: DS18B20 -127°C -->
+        <div class="playbook-item">
+          <div class="playbook-item-header">
+            <div class="badge-error">PROBLEM: -127°C</div>
+            <h4>DS18B20 Soil Probe Disconnection</h4>
+          </div>
+          <div class="playbook-item-body">
+            <p>The Dallas OneWire protocol returns exactly <code>-127.00°C</code> (DEVICE_DISCONNECTED_C) when the sensor is unable to reply.</p>
+            <div class="checklist">
+              <label class="check-item"><input type="checkbox" checked> <span>Check <strong>DATA wire</strong> on GPIO5</span></label>
+              <label class="check-item"><input type="checkbox" checked> <span>Verify <strong>4.7kΩ pull-up resistor</strong> between 3.3V and Yellow/White wire</span></label>
+              <label class="check-item"><input type="checkbox" checked> <span>Verify <strong>Wire Color Coding</strong>: <strong>Red</strong> = 3.3V, <strong>Black</strong> = GND, <strong>Yellow/White</strong> = GPIO5</span></label>
+              <label class="check-item"><input type="checkbox" checked> <span>Confirm probe cable has no water intrusion or breaks along the line</span></label>
+            </div>
+            <div class="schematic-snippet">
+              <pre><code>3.3V ───[ 4.7kΩ Resistor ]──┬─── DS18B20 Yellow/White (GPIO5)
+                            └─── ESP32 GPIO5</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Case 3: INA219 Not Found -->
+        <div class="playbook-item">
+          <div class="playbook-item-header">
+            <div class="badge-error">PROBLEM: INA219 Not Found</div>
+            <h4>I2C Bus Communication Failure</h4>
+          </div>
+          <div class="playbook-item-body">
+            <p>If the ESP32 serial monitor reports <code>INA219 Not Found</code>, the I2C peripheral is not responding at address <code>0x40</code>.</p>
+            <div class="checklist">
+              <label class="check-item"><input type="checkbox" checked> <span>Check <strong>SDA ➔ GPIO21</strong></span></label>
+              <label class="check-item"><input type="checkbox" checked> <span>Check <strong>SCL ➔ GPIO22</strong></span></label>
+              <label class="check-item"><input type="checkbox" checked> <span>Verify VCC is connected to 3.3V and GND to common system GND</span></label>
+              <label class="check-item"><input type="checkbox" checked> <span>Run an I2C bus scanner sketch to verify address is <code>0x40</code></span></label>
+            </div>
+            <div class="schematic-snippet">
+              <pre><code>INA219 SDA ─── ESP32 GPIO21
+INA219 SCL ─── ESP32 GPIO22</code></pre>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 5: ESP32 FIRMWARE C++ CODE STUDIO -->
+    <!-- ========================================================================= -->
+    <section class="tab-content" id="firmwareTab">
+      
+      <div class="firmware-container">
+        
+        <div class="firmware-header">
+          <div>
+            <h3><i class="fa-solid fa-code"></i> Ready-to-Flash ESP32 Arduino C++ Firmware</h3>
+            <p>Full implementation with exact GPIO mappings, WiFi connection, sensor libraries, and <code>POST /api/sensor-data</code> client.</p>
+          </div>
+          <button class="btn btn-primary btn-sm" id="btnCopyFirmware">
+            <i class="fa-solid fa-copy"></i> Copy Arduino Sketch
+          </button>
+        </div>
+
+        <div class="firmware-code-box">
+          <pre><code id="firmwareCodeBlock">// AgriSense ESP32 Field Sensor Node - Production Firmware
+// Loading from /api/esp32/firmware...</code></pre>
+        </div>
+
+        <div class="libraries-list-box">
+          <h4><i class="fa-solid fa-box-open"></i> Required Arduino IDE Libraries:</h4>
+          <ul>
+            <li><code>ArduinoJson</code> by Benoit Blanchon (v6.x or v7.x)</li>
+            <li><code>DHT sensor library</code> by Adafruit (v1.4.x)</li>
+            <li><code>OneWire</code> by Paul Stoffregen (v2.3.x)</li>
+            <li><code>DallasTemperature</code> by Miles Burton (v3.9.x)</li>
+            <li><code>Adafruit INA219</code> by Adafruit (v1.2.x)</li>
+          </ul>
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL: ESP32 FIELD HARDWARE SIMULATOR & ANOMALY INJECTOR -->
+  <!-- ========================================================================= -->
+  <div class="modal-backdrop" id="simulatorModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div>
+          <h3><i class="fa-solid fa-sliders"></i> ESP32 Field Hardware Simulator</h3>
+          <p>Generate simulated field packets or inject anomalies to test troubleshooting alerts.</p>
+        </div>
+        <button class="modal-close" id="btnCloseSimulator">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        
+        <!-- Quick Anomaly Injections from Spec -->
+        <div class="anomaly-section">
+          <span class="anomaly-label">Fault / Anomaly Injection:</span>
+          <div class="anomaly-buttons">
+            <button class="btn-anomaly" id="btnSimDhtNan">
+              <i class="fa-solid fa-triangle-exclamation"></i> Inject DHT22 NaN
+            </button>
+            <button class="btn-anomaly" id="btnSimDs18Disconnect">
+              <i class="fa-solid fa-triangle-exclamation"></i> Inject DS18B20 -127°C
+            </button>
+            <button class="btn-anomaly" id="btnSimInaDisconnect">
+              <i class="fa-solid fa-triangle-exclamation"></i> Inject INA219 Missing
+            </button>
+            <button class="btn-anomaly btn-anomaly-reset" id="btnSimResetNominal">
+              <i class="fa-solid fa-check"></i> Restore Nominal
+            </button>
+          </div>
+        </div>
+
+        <!-- Interactive Sliders -->
+        <div class="slider-controls-grid">
+          
+          <div class="slider-group">
+            <div class="slider-head">
+              <label for="simTemp">Air Temp (DHT22 GPIO4)</label>
+              <span class="val-badge" id="simTempVal">31.5 °C</span>
+            </div>
+            <input type="range" id="simTemp" min="10" max="50" step="0.5" value="31.5">
+          </div>
+
+          <div class="slider-group">
+            <div class="slider-head">
+              <label for="simHum">Air Humidity (DHT22 GPIO4)</label>
+              <span class="val-badge" id="simHumVal">78.0 %</span>
+            </div>
+            <input type="range" id="simHum" min="15" max="100" step="1" value="78">
+          </div>
+
+          <div class="slider-group">
+            <div class="slider-head">
+              <label for="simSoilTemp">Soil Temp (DS18B20 GPIO5)</label>
+              <span class="val-badge" id="simSoilTempVal">27.4 °C</span>
+            </div>
+            <input type="range" id="simSoilTemp" min="5" max="45" step="0.5" value="27.4">
+          </div>
+
+          <div class="slider-group">
+            <div class="slider-head">
+              <label for="simMoist">Soil Moisture ADC (GPIO34)</label>
+              <span class="val-badge" id="simMoistVal">1850 (59%)</span>
+            </div>
+            <input type="range" id="simMoist" min="1200" max="3000" step="25" value="1850">
+          </div>
+
+          <div class="slider-group">
+            <div class="slider-head">
+              <label for="simVolt">Bus Voltage (INA219)</label>
+              <span class="val-badge" id="simVoltVal">3.90 V</span>
+            </div>
+            <input type="range" id="simVolt" min="3.2" max="4.2" step="0.05" value="3.90">
+          </div>
+
+          <div class="slider-group">
+            <div class="slider-head">
+              <label for="simCurr">Shunt Current (INA219)</label>
+              <span class="val-badge" id="simCurrVal">120 mA</span>
+            </div>
+            <input type="range" id="simCurr" min="20" max="300" step="5" value="120">
+          </div>
+
+        </div>
+
+        <!-- Live JSON Packet Preview matching Spec -->
+        <div class="packet-preview-box">
+          <div class="preview-title">Outgoing JSON Payload (POST /api/sensor-data):</div>
+          <pre><code id="simJsonPreview">{
+  "node_id": "FIELD_NODE_01",
+  "temperature": 31.5,
+  "humidity": 78,
+  "soil_temperature": 27.4,
+  "soil_moisture": 1850,
+  "voltage": 3.9,
+  "current": 120
+}</code></pre>
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+        <div class="stream-toggle">
+          <input type="checkbox" id="simAutoStream">
+          <label for="simAutoStream">Auto-transmit packet every 3s (Field Simulation Mode)</label>
+        </div>
+        <button class="btn btn-primary" id="btnSendSimPacket">
+          <i class="fa-solid fa-paper-plane"></i> Send Packet Now
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Notification Toast -->
+  <div class="toast" id="toastMessage"></div>
+
+  <!-- Application JS Logic -->
+  <script src="js/app.js"></script>
+</body>
+</html>

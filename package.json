@@ -1,0 +1,24 @@
+{
+  "name": "agrisense-iot-dashboard",
+  "version": "1.0.0",
+  "description": "AgriSense ESP32 Field Sensor Node - IoT Agricultural Data Acquisition & Multimodal Dataset Platform",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json && tsc -p tsconfig.client.json",
+    "start": "npm run build && node dist/server.js"
+  },
+  "dependencies": {
+    "archiver": "^7.0.1",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "multer": "^1.4.5-lts.1"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.1",
+    "@types/multer": "^1.4.12",
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2",
+    "undici-types": "^8.10.2"
+  }
+}
