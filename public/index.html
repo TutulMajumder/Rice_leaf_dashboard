@@ -491,6 +491,9 @@
                 <label><i class="fa-solid fa-location-dot"></i> Phone GPS Coordinates</label>
                 <span class="gps-coords-badge" id="gpsDisplayBadge">Waiting for phone GPS</span>
               </div>
+              <button type="button" class="btn btn-secondary btn-sm gps-locate-button" id="btnUsePhoneGps">
+                <i class="fa-solid fa-location-crosshairs"></i> Use Phone GPS
+              </button>
               <div id="gpsMapContainer"></div>
               <div class="gps-inputs-row">
                 <input type="number" step="0.0001" id="inputLat" value="" placeholder="Latitude">
@@ -535,7 +538,8 @@
           <div>
             <h3><i class="fa-solid fa-folder-tree"></i> Generated Dataset Structure & Archive</h3>
             <p>Dataset maintains exact structure: <code>Dataset/Images/</code>, <code>metadata.csv</code>, and
-              <code>sensor_data.json</code></p>
+              <code>sensor_data.json</code>
+            </p>
           </div>
           <div class="export-actions">
             <a href="/api/dataset/metadata.csv" class="btn btn-secondary btn-sm" download>
@@ -938,7 +942,8 @@ INA219 SCL ─── ESP32 GPIO22</code></pre>
           <div>
             <h3><i class="fa-solid fa-code"></i> Ready-to-Flash ESP32 Arduino C++ Firmware</h3>
             <p>Full implementation with exact GPIO mappings, WiFi connection, sensor libraries, and
-              <code>POST /api/sensor-data</code> client.</p>
+              <code>POST /api/sensor-data</code> client.
+            </p>
           </div>
           <button class="btn btn-primary btn-sm" id="btnCopyFirmware">
             <i class="fa-solid fa-copy"></i> Copy Arduino Sketch

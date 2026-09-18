@@ -226,6 +226,10 @@ function updateGpsFromPhone() {
         toast("Phone GPS is not available", true);
         return;
     }
+    if (!window.isSecureContext && window.location.hostname !== "localhost") {
+        toast("GPS needs HTTPS on the deployed website", true);
+        return;
+    }
     navigator.geolocation.getCurrentPosition((position) => {
         const altitude = position.coords.altitude;
         if (altitude === null || !Number.isFinite(altitude)) {
@@ -241,7 +245,14 @@ function updateGpsFromPhone() {
         value("hudGpsTag", `${latitude}°N, ${longitude}°E`);
         value("gpsDisplayBadge", `${latitude}°N, ${longitude}°E`);
         toast("Phone GPS location added");
-    }, () => toast("Allow location access to use phone GPS", true), { enableHighAccuracy: true, timeout: 10000 });
+    }, (error) => {
+        const message = error.code === 1
+            ? "Location permission denied; allow it in browser site settings"
+            : error.code === 2
+                ? "Phone location is unavailable; turn on GPS"
+                : "Phone GPS timed out; try again outdoors or near a window";
+        toast(message, true);
+    }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
 }
 function init() {
     value("clockTime", new Date().toUTCString().replace("GMT", "UTC"));
@@ -281,7 +292,7 @@ function init() {
     });
     galleryInput.addEventListener("change", () => handleImage(galleryInput));
     cameraInput.addEventListener("change", () => handleImage(cameraInput));
-    updateGpsFromPhone();
+    $("btnUsePhoneGps").addEventListener("click", updateGpsFromPhone);
     $("nodeSelect").addEventListener("change", () => void pollTelemetry());
     $("datasetRecordForm").addEventListener("submit", async (event) => {
         event.preventDefault();
